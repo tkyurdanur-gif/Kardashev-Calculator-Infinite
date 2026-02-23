@@ -3,17 +3,1032 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Kardashev Calculator</title>
-
+  <title>Kardashev Calculator (∞ Mode)</title>
+  <meta name="description" content="A futuristic Kardashev Scale calculator (Sagan continuous scale) with infinite theoretical extension and sci-fi HUD UI." />
   <style>
-    /* PASTE CSS HERE (STEP 3) */
+    :root{
+      --bg0:#04060b;
+      --bg1:#060a12;
+      --panel:rgba(10,18,30,.62);
+      --panel2:rgba(8,14,24,.45);
+      --line:rgba(140,255,235,.20);
+      --line2:rgba(140,255,235,.12);
+      --text:rgba(232,255,251,.92);
+      --muted:rgba(232,255,251,.65);
+      --accent:rgba(140,255,235,.95);
+      --accent2:rgba(120,210,255,.90);
+      --warn:rgba(255,190,120,.95);
+      --bad:rgba(255,90,120,.95);
+      --good:rgba(140,255,170,.95);
+      --shadow: 0 18px 60px rgba(0,0,0,.55);
+      --radius: 18px;
+      --radius2: 14px;
+      --grid: rgba(140,255,235,.06);
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      --sans: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
+    }
+    *{ box-sizing:border-box; }
+    html,body{ height:100%; }
+    body{
+      margin:0;
+      font-family: var(--sans);
+      color: var(--text);
+      background:
+        radial-gradient(1200px 700px at 70% 5%, rgba(120,210,255,.16), transparent 55%),
+        radial-gradient(900px 700px at 10% 30%, rgba(140,255,235,.11), transparent 58%),
+        radial-gradient(800px 600px at 80% 85%, rgba(255,140,220,.07), transparent 60%),
+        linear-gradient(180deg, var(--bg0), var(--bg1));
+      overflow-x:hidden;
+    }
+
+    /* starfield canvas */
+    #stars{ position:fixed; inset:0; z-index:-3; display:block; }
+
+    /* subtle grid overlay */
+    .grid{
+      position:fixed; inset:0; z-index:-2;
+      background:
+        linear-gradient(var(--grid) 1px, transparent 1px),
+        linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+      background-size: 44px 44px;
+      mask-image: radial-gradient(500px 350px at 60% 25%, black 0%, transparent 65%);
+      opacity:.8;
+      pointer-events:none;
+    }
+
+    /* vignette */
+    .vignette{
+      position:fixed; inset:0; z-index:-1; pointer-events:none;
+      background: radial-gradient(1200px 800px at 50% 35%, transparent 40%, rgba(0,0,0,.55) 100%);
+    }
+
+    .wrap{
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 34px 18px 52px;
+    }
+
+    header{
+      display:flex;
+      align-items:flex-end;
+      justify-content:space-between;
+      gap:16px;
+      margin-bottom: 18px;
+    }
+
+    .brand{
+      display:flex; flex-direction:column; gap:6px;
+    }
+    .title{
+      font-size: clamp(22px, 3.4vw, 34px);
+      letter-spacing: .5px;
+      line-height:1.1;
+      margin:0;
+      text-shadow: 0 0 22px rgba(140,255,235,.18);
+    }
+    .subtitle{
+      margin:0;
+      color: var(--muted);
+      font-size: 13.5px;
+      letter-spacing: .25px;
+    }
+
+    .pillrow{ display:flex; flex-wrap:wrap; gap:10px; align-items:center; justify-content:flex-end; }
+    .pill{
+      border:1px solid var(--line);
+      background: linear-gradient(180deg, rgba(10,18,30,.55), rgba(10,18,30,.25));
+      border-radius:999px;
+      padding:8px 12px;
+      box-shadow: 0 0 0 1px rgba(0,0,0,.15) inset;
+      backdrop-filter: blur(10px);
+      display:flex; gap:10px; align-items:center;
+    }
+    .pill b{ font-family: var(--mono); font-weight:600; font-size:12.5px; }
+    .pill span{ color:var(--muted); font-size:12px; }
+
+    .hud{
+      display:grid;
+      grid-template-columns: 1.05fr .95fr;
+      gap:16px;
+    }
+    @media (max-width: 900px){
+      .hud{ grid-template-columns: 1fr; }
+      header{ align-items:flex-start; }
+      .pillrow{ justify-content:flex-start; }
+    }
+
+    .card{
+      border:1px solid var(--line);
+      background: linear-gradient(180deg, var(--panel), rgba(10,18,30,.28));
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(10px);
+      position:relative;
+      overflow:hidden;
+    }
+
+    .card::before{
+      content:"";
+      position:absolute; inset:-2px;
+      background:
+        radial-gradient(550px 180px at 25% 0%, rgba(140,255,235,.20), transparent 55%),
+        radial-gradient(500px 220px at 90% 10%, rgba(120,210,255,.18), transparent 55%),
+        radial-gradient(600px 260px at 60% 105%, rgba(255,140,220,.10), transparent 55%);
+      opacity:.85;
+      pointer-events:none;
+      filter: blur(.2px);
+    }
+
+    .card > *{ position:relative; }
+
+    .cardhead{
+      display:flex; align-items:center; justify-content:space-between;
+      padding: 16px 16px 12px;
+      border-bottom: 1px solid var(--line2);
+    }
+    .cardhead h2{
+      margin:0;
+      font-size: 14px;
+      letter-spacing:.35px;
+      color: rgba(232,255,251,.88);
+      font-weight:600;
+    }
+    .badge{
+      font-family: var(--mono);
+      font-size: 11px;
+      color: rgba(232,255,251,.85);
+      border:1px solid var(--line);
+      border-radius: 999px;
+      padding: 6px 10px;
+      background: rgba(8,14,24,.35);
+    }
+
+    .content{ padding: 14px 16px 16px; }
+
+    .tabs{
+      display:flex; gap:10px; flex-wrap:wrap;
+      margin-bottom: 12px;
+    }
+    .tab{
+      border: 1px solid var(--line);
+      background: rgba(8,14,24,.35);
+      color: rgba(232,255,251,.85);
+      padding: 10px 12px;
+      border-radius: 12px;
+      cursor:pointer;
+      user-select:none;
+      font-size: 13px;
+      letter-spacing:.2px;
+      transition: transform .06s ease, box-shadow .18s ease, border-color .18s ease;
+    }
+    .tab:hover{ transform: translateY(-1px); box-shadow: 0 0 24px rgba(140,255,235,.12); }
+    .tab.active{
+      border-color: rgba(140,255,235,.55);
+      box-shadow: 0 0 0 1px rgba(140,255,235,.16) inset, 0 0 30px rgba(140,255,235,.14);
+      background: linear-gradient(180deg, rgba(140,255,235,.16), rgba(8,14,24,.35));
+    }
+
+    .row{
+      display:grid;
+      grid-template-columns: 1fr 150px;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+    @media (max-width: 520px){
+      .row{ grid-template-columns: 1fr; }
+    }
+
+    label{
+      display:block;
+      font-size: 12px;
+      color: var(--muted);
+      margin: 0 0 6px;
+      letter-spacing:.2px;
+    }
+
+    .field{
+      border:1px solid var(--line);
+      background: rgba(8,14,24,.35);
+      border-radius: 14px;
+      padding: 10px 12px;
+      display:flex; gap:10px; align-items:center;
+      box-shadow: 0 0 0 1px rgba(0,0,0,.12) inset;
+    }
+    input[type="text"], input[type="number"]{
+      width:100%;
+      border:none;
+      outline:none;
+      background: transparent;
+      color: var(--text);
+      font-size: 14px;
+      font-family: var(--mono);
+      letter-spacing:.2px;
+    }
+    select{
+      border:1px solid rgba(140,255,235,.28);
+      background: rgba(10,18,30,.40);
+      color: rgba(232,255,251,.9);
+      border-radius: 12px;
+      padding: 8px 10px;
+      outline:none;
+      font-family: var(--mono);
+      font-size: 12.5px;
+      cursor:pointer;
+    }
+
+    .btnrow{
+      display:flex; gap:10px; flex-wrap:wrap;
+      margin-top: 12px;
+    }
+    button{
+      border:1px solid rgba(140,255,235,.40);
+      background: linear-gradient(180deg, rgba(140,255,235,.16), rgba(10,18,30,.35));
+      color: rgba(232,255,251,.92);
+      border-radius: 14px;
+      padding: 10px 12px;
+      cursor:pointer;
+      font-size: 13px;
+      letter-spacing:.2px;
+      box-shadow: 0 0 0 1px rgba(0,0,0,.15) inset;
+      transition: transform .06s ease, box-shadow .2s ease, border-color .2s ease;
+    }
+    button:hover{ transform: translateY(-1px); box-shadow: 0 0 34px rgba(140,255,235,.14); border-color: rgba(140,255,235,.62); }
+    button.secondary{
+      background: rgba(8,14,24,.35);
+      border-color: rgba(140,255,235,.24);
+    }
+
+    .toggle{
+      display:flex; align-items:center; gap:10px;
+      margin-top: 12px;
+      padding: 10px 12px;
+      border:1px solid var(--line2);
+      border-radius: 14px;
+      background: rgba(8,14,24,.22);
+    }
+    .toggle span{ color: var(--muted); font-size: 12.5px; }
+    .switch{
+      width: 46px; height: 26px; border-radius: 999px;
+      border:1px solid rgba(140,255,235,.40);
+      background: rgba(10,18,30,.35);
+      position:relative;
+      cursor:pointer;
+      flex: 0 0 auto;
+      box-shadow: 0 0 0 1px rgba(0,0,0,.15) inset;
+    }
+    .knob{
+      position:absolute; top: 3px; left: 3px;
+      width: 20px; height: 20px;
+      border-radius: 999px;
+      background: radial-gradient(circle at 35% 35%, rgba(255,255,255,.9), rgba(140,255,235,.7));
+      box-shadow: 0 0 18px rgba(140,255,235,.25);
+      transition: left .18s ease;
+    }
+    .switch.on .knob{ left: 23px; }
+
+    .fineprint{
+      margin-top: 10px;
+      color: rgba(232,255,251,.58);
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    /* Output card */
+    .big{
+      font-family: var(--mono);
+      font-size: 30px;
+      letter-spacing: .2px;
+      margin: 0;
+    }
+    .big small{
+      font-size: 14px;
+      color: var(--muted);
+      font-family: var(--sans);
+      letter-spacing:.2px;
+      margin-left: 10px;
+    }
+
+    .kv{
+      display:grid;
+      grid-template-columns: 1fr;
+      gap: 10px;
+      margin-top: 14px;
+    }
+    .kv .line{
+      border: 1px solid var(--line2);
+      border-radius: 14px;
+      padding: 10px 12px;
+      background: rgba(8,14,24,.22);
+    }
+    .kv .k{ color: var(--muted); font-size: 12px; letter-spacing:.2px; margin-bottom: 6px; }
+    .kv .v{ font-family: var(--mono); font-size: 13.5px; letter-spacing:.2px; }
+    .tagrow{ display:flex; gap:8px; flex-wrap:wrap; margin-top: 10px; }
+    .tag{
+      font-size: 11px;
+      border: 1px solid var(--line2);
+      border-radius: 999px;
+      padding: 6px 10px;
+      background: rgba(8,14,24,.22);
+      color: rgba(232,255,251,.78);
+    }
+    .tag.warn{ border-color: rgba(255,190,120,.35); color: rgba(255,210,160,.98); }
+    .tag.good{ border-color: rgba(140,255,170,.35); color: rgba(170,255,200,.98); }
+
+    /* Meter */
+    .meterWrap{
+      margin-top: 14px;
+      border:1px solid var(--line2);
+      border-radius: 16px;
+      padding: 12px;
+      background: rgba(8,14,24,.22);
+    }
+    .meterTop{
+      display:flex; justify-content:space-between; align-items:center;
+      margin-bottom: 10px;
+      gap:10px;
+      flex-wrap:wrap;
+    }
+    .meterTop .name{ font-size: 12px; color: var(--muted); letter-spacing:.2px; }
+    .meterTop .scale{
+      display:flex; gap:10px; align-items:center; flex-wrap:wrap;
+      font-size: 12px; color: rgba(232,255,251,.75);
+      font-family: var(--mono);
+    }
+    .meterTop input[type="range"]{
+      width: 180px;
+      accent-color: rgb(140,255,235);
+    }
+
+    .bar{
+      position:relative;
+      height: 18px;
+      border-radius: 999px;
+      border:1px solid rgba(140,255,235,.22);
+      background:
+        linear-gradient(90deg,
+          rgba(140,255,235,.08),
+          rgba(120,210,255,.09),
+          rgba(255,140,220,.06));
+      overflow:hidden;
+      box-shadow: 0 0 0 1px rgba(0,0,0,.20) inset;
+    }
+    .bar::after{
+      content:"";
+      position:absolute; inset:-60px -40px;
+      background: radial-gradient(220px 90px at 15% 50%, rgba(140,255,235,.16), transparent 60%);
+      animation: sweep 3.8s linear infinite;
+      opacity:.8;
+      pointer-events:none;
+    }
+    @keyframes sweep{
+      0%{ transform: translateX(-40%); }
+      100%{ transform: translateX(60%); }
+    }
+
+    .ticks{
+      display:flex; justify-content:space-between;
+      margin-top: 9px;
+      font-family: var(--mono);
+      font-size: 11px;
+      color: rgba(232,255,251,.60);
+    }
+
+    .marker{
+      position:absolute;
+      top: -10px;
+      width: 2px;
+      height: 38px;
+      background: rgba(140,255,235,.85);
+      box-shadow: 0 0 18px rgba(140,255,235,.35);
+    }
+    .marker::before{
+      content:"";
+      position:absolute;
+      top: 10px; left: -6px;
+      width: 14px; height: 14px;
+      border-radius: 999px;
+      border:1px solid rgba(140,255,235,.55);
+      background: radial-gradient(circle at 35% 35%, rgba(255,255,255,.9), rgba(140,255,235,.28));
+      box-shadow: 0 0 24px rgba(140,255,235,.25);
+    }
+
+    .note{
+      margin-top: 10px;
+      font-size: 12px;
+      color: rgba(232,255,251,.60);
+      line-height: 1.45;
+    }
+    .note b{ color: rgba(232,255,251,.82); }
+
+    footer{
+      margin-top: 16px;
+      text-align:center;
+      color: rgba(232,255,251,.45);
+      font-size: 12px;
+    }
+
+    /* small glow corners */
+    .corner{
+      position:absolute;
+      width: 18px; height: 18px;
+      border: 2px solid rgba(140,255,235,.35);
+      opacity:.75;
+      pointer-events:none;
+      filter: drop-shadow(0 0 10px rgba(140,255,235,.18));
+    }
+    .c1{ top:10px; left:10px; border-right:none; border-bottom:none; border-radius: 12px 0 0 0; }
+    .c2{ top:10px; right:10px; border-left:none; border-bottom:none; border-radius: 0 12px 0 0; }
+    .c3{ bottom:10px; left:10px; border-right:none; border-top:none; border-radius: 0 0 0 12px; }
+    .c4{ bottom:10px; right:10px; border-left:none; border-top:none; border-radius: 0 0 12px 0; }
+
+    .hidden{ display:none !important; }
   </style>
 </head>
-<body>
-  <!-- PASTE HTML BODY HERE (STEP 4) -->
 
-  <script>
-    /* PASTE JS HERE (STEP 5) */
-  </script>
+<body>
+  <canvas id="stars"></canvas>
+  <div class="grid"></div>
+  <div class="vignette"></div>
+
+  <div class="wrap">
+    <header>
+      <div class="brand">
+        <h1 class="title">Kardashev Calculator</h1>
+        <p class="subtitle">Sagan continuous scale • supports theoretical <span style="color:rgba(255,210,160,.95)">K → ∞</span> via a compressed HUD meter</p>
+      </div>
+      <div class="pillrow">
+        <div class="pill"><b>FORMULA</b><span>K = (log10(P) − 6)/10</span></div>
+        <div class="pill"><b>INVERSE</b><span>log10(P) = 10K + 6</span></div>
+      </div>
+    </header>
+
+    <div class="hud">
+      <!-- INPUT CARD -->
+      <section class="card">
+        <div class="corner c1"></div><div class="corner c2"></div><div class="corner c3"></div><div class="corner c4"></div>
+
+        <div class="cardhead">
+          <h2>INPUT / CONTROLS</h2>
+          <div class="badge" id="modeBadge">MODE: Power → K</div>
+        </div>
+
+        <div class="content">
+          <div class="tabs">
+            <div class="tab active" id="tabP2K">Power → Kardashev</div>
+            <div class="tab" id="tabK2P">Kardashev → Power</div>
+          </div>
+
+          <!-- POWER → K -->
+          <div id="panelP2K">
+            <div class="row">
+              <div>
+                <label for="powerInput">Power usage</label>
+                <div class="field">
+                  <input id="powerInput" type="text" inputmode="decimal" placeholder="e.g. 2.0e13 or 20000000000000" />
+                </div>
+              </div>
+              <div>
+                <label for="unitSel">Units</label>
+                <div class="field" style="justify-content:space-between;">
+                  <select id="unitSel" title="Unit">
+                    <option value="1">W</option>
+                    <option value="1e3">kW</option>
+                    <option value="1e6">MW</option>
+                    <option value="1e9">GW</option>
+                    <option value="1e12" selected>TW</option>
+                    <option value="1e15">PW</option>
+                    <option value="1e18">EW</option>
+                  </select>
+                  <span style="font-family:var(--mono); color:rgba(232,255,251,.7); font-size:12px;">× factor</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="btnrow">
+              <button id="calcBtn">Calculate</button>
+              <button class="secondary" id="earthBtn" title="Rough present-day human power usage">Preset: Earth (≈ 2×10¹³ W)</button>
+              <button class="secondary" id="clearBtn">Clear</button>
+            </div>
+
+            <div class="toggle">
+              <div class="switch on" id="infSwitch" role="switch" aria-checked="true" tabindex="0" title="∞ mode uses a compressed meter that supports arbitrarily large K">
+                <div class="knob"></div>
+              </div>
+              <div style="display:flex; flex-direction:column; gap:2px;">
+                <span><b style="color:rgba(232,255,251,.85)">Theoretical ∞ mode</b> (meter compresses K → ∞)</span>
+                <span style="font-family:var(--mono); font-size:11.5px; color:rgba(232,255,251,.55)">Meter curve: t = 1 − e^(−K / s)</span>
+              </div>
+            </div>
+
+            <div class="fineprint">
+              Tip: you can enter scientific notation like <span style="font-family:var(--mono)">3.8e26</span>. Power must be &gt; 0.
+            </div>
+          </div>
+
+          <!-- K → POWER -->
+          <div id="panelK2P" class="hidden">
+            <div class="row">
+              <div>
+                <label for="kInput">Kardashev level (continuous)</label>
+                <div class="field">
+                  <input id="kInput" type="text" inputmode="decimal" placeholder="e.g. 1.00  •  2.35  •  4.20" />
+                </div>
+              </div>
+              <div>
+                <label for="kQuick">Quick set</label>
+                <div class="field" style="justify-content:space-between;">
+                  <select id="kQuick">
+                    <option value="">—</option>
+                    <option value="0.70">Type 0-ish (0.70)</option>
+                    <option value="1.00">Type I (1.00)</option>
+                    <option value="2.00">Type II (2.00)</option>
+                    <option value="3.00">Type III (3.00)</option>
+                    <option value="4.00">Type IV? (4.00)</option>
+                    <option value="6.00">Extreme (6.00)</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <div class="btnrow">
+              <button id="calcBtn2">Calculate</button>
+              <button class="secondary" id="clearBtn2">Clear</button>
+            </div>
+
+            <div class="toggle">
+              <div class="switch on" id="infSwitch2" role="switch" aria-checked="true" tabindex="0">
+                <div class="knob"></div>
+              </div>
+              <div style="display:flex; flex-direction:column; gap:2px;">
+                <span><b style="color:rgba(232,255,251,.85)">Theoretical ∞ mode</b> on meter</span>
+                <span style="font-family:var(--mono); font-size:11.5px; color:rgba(232,255,251,.55)">Shows log10(P) for huge values</span>
+              </div>
+            </div>
+
+            <div class="fineprint">
+              Note: computing P in watts overflows at high K, so the output switches to <span style="font-family:var(--mono)">10^E</span> form automatically.
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- OUTPUT CARD -->
+      <section class="card">
+        <div class="corner c1"></div><div class="corner c2"></div><div class="corner c3"></div><div class="corner c4"></div>
+
+        <div class="cardhead">
+          <h2>OUTPUT / READOUT</h2>
+          <div class="badge" id="statusBadge">READY</div>
+        </div>
+
+        <div class="content">
+          <p class="big" id="bigLine">K = <span id="bigK">—</span><small id="bigType">—</small></p>
+
+          <div class="tagrow">
+            <span class="tag good" id="tagOk">Sagan continuous scale</span>
+            <span class="tag" id="tagMeter">∞ meter enabled</span>
+            <span class="tag warn hidden" id="tagSpec">Speculative extension</span>
+            <span class="tag warn hidden" id="tagHuge">Huge number mode</span>
+            <span class="tag hidden" id="tagErr" style="border-color:rgba(255,90,120,.35); color:rgba(255,140,170,.95)">Input error</span>
+          </div>
+
+          <div class="kv">
+            <div class="line">
+              <div class="k">Power (P)</div>
+              <div class="v" id="outPower">—</div>
+            </div>
+            <div class="line">
+              <div class="k">log10(P) (E)</div>
+              <div class="v" id="outLog10P">—</div>
+            </div>
+            <div class="line">
+              <div class="k">Formula check</div>
+              <div class="v" id="outCheck">—</div>
+            </div>
+          </div>
+
+          <div class="meterWrap">
+            <div class="meterTop">
+              <div class="name">HUD meter (compressed for K → ∞)</div>
+              <div class="scale">
+                <span>s =</span>
+                <input id="scaleS" type="range" min="0.5" max="5" step="0.1" value="1.5" />
+                <span id="scaleSVal">1.5</span>
+              </div>
+            </div>
+            <div class="bar" id="bar">
+              <div class="marker" id="marker" style="left:0px;"></div>
+            </div>
+            <div class="ticks" aria-hidden="true">
+              <span>0</span><span>1</span><span>2</span><span>3</span><span>5</span><span>10</span><span>∞</span>
+            </div>
+            <div class="note" id="meterNote">
+              Meter mapping: <b>t = 1 − e^(−K / s)</b>. This lets the bar represent arbitrarily large K,
+              but values visually “crowd” near the right edge. The numeric readout stays exact.
+            </div>
+          </div>
+
+          <div class="note" id="helpNote">
+            Enter a power value (watts) or a K level. This UI labels K≥3 as speculative because
+            extensions beyond Type III aren’t standardized.
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <footer>
+      Built for fun + theory. Units: W (watts). Uses Sagan’s continuous Kardashev scale.
+    </footer>
+  </div>
+
+<script>
+(() => {
+  // ---------- STARFIELD ----------
+  const canvas = document.getElementById('stars');
+  const ctx = canvas.getContext('2d', { alpha: true });
+  let w = 0, h = 0, dpr = 1;
+  let stars = [];
+  const STAR_COUNT = 260;
+
+  function resize(){
+    dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+    w = canvas.width = Math.floor(window.innerWidth * dpr);
+    h = canvas.height = Math.floor(window.innerHeight * dpr);
+    canvas.style.width = window.innerWidth + 'px';
+    canvas.style.height = window.innerHeight + 'px';
+    initStars();
+  }
+
+  function initStars(){
+    stars = [];
+    for (let i=0; i<STAR_COUNT; i++){
+      const z = Math.random() * 1 + 0.2;
+      stars.push({
+        x: Math.random() * w,
+        y: Math.random() * h,
+        r: (Math.random() * 1.2 + 0.3) * dpr,
+        v: (0.12 + Math.random() * 0.6) * z * dpr,
+        a: 0.25 + Math.random() * 0.75,
+        tw: Math.random() * 1000
+      });
+    }
+  }
+
+  function starTick(t){
+    ctx.clearRect(0,0,w,h);
+
+    // subtle nebula
+    const g = ctx.createRadialGradient(w*0.65, h*0.15, 0, w*0.65, h*0.15, Math.max(w,h)*0.65);
+    g.addColorStop(0, 'rgba(120,210,255,0.10)');
+    g.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(0,0,w,h);
+
+    // stars
+    for (const s of stars){
+      s.y += s.v;
+      if (s.y > h + 30) { s.y = -30; s.x = Math.random() * w; }
+
+      const tw = 0.55 + 0.45 * Math.sin((t + s.tw) / 600);
+      const alpha = s.a * tw;
+
+      ctx.beginPath();
+      ctx.fillStyle = `rgba(230,255,251,${alpha})`;
+      ctx.arc(s.x, s.y, s.r, 0, Math.PI*2);
+      ctx.fill();
+    }
+
+    requestAnimationFrame(starTick);
+  }
+
+  window.addEventListener('resize', resize);
+  resize();
+  requestAnimationFrame(starTick);
+
+  // ---------- MATH / FORMAT ----------
+  const clamp = (v,a,b) => Math.max(a, Math.min(b, v));
+
+  function parseNumber(s){
+    if (typeof s !== 'string') return NaN;
+    // allow commas/spaces
+    const cleaned = s.trim().replace(/,/g,'').replace(/\s+/g,'');
+    if (!cleaned) return NaN;
+    const n = Number(cleaned);
+    return Number.isFinite(n) ? n : NaN;
+  }
+
+  function fmtSig(x, sig=3){
+    if (!Number.isFinite(x)) return String(x);
+    if (x === 0) return "0";
+    const abs = Math.abs(x);
+    const e = Math.floor(Math.log10(abs));
+    const m = x / Math.pow(10, e);
+    const mRounded = Number(m.toPrecision(sig));
+    // keep exponent if huge or small
+    if (e >= 6 || e <= -4) return `${mRounded}×10^${e}`;
+    return Number(x.toPrecision(sig)).toString();
+  }
+
+  function formatPower(P){
+    // human-ish units for representable ranges
+    const abs = Math.abs(P);
+    const units = [
+      {u:'EW', f:1e18},
+      {u:'PW', f:1e15},
+      {u:'TW', f:1e12},
+      {u:'GW', f:1e9},
+      {u:'MW', f:1e6},
+      {u:'kW', f:1e3},
+      {u:'W',  f:1}
+    ];
+    for (const it of units){
+      if (abs >= it.f){
+        const v = P / it.f;
+        return `${fmtSig(v, 4)} ${it.u}`;
+      }
+    }
+    return `${fmtSig(P, 4)} W`;
+  }
+
+  function categoryFromK(K){
+    if (!Number.isFinite(K)) return "Beyond";
+    if (K < 0) return "Below Type 0";
+    if (K < 1) return "Type 0 (pre-planetary)";
+    if (K < 2) return "Type I (planetary)";
+    if (K < 3) return "Type II (stellar)";
+    if (K < 4) return "Type III (galactic)";
+    if (K < 5) return "Post-III (speculative)";
+    if (K < 6) return "Far Post-III (speculative)";
+    return "Extreme (speculative)";
+  }
+
+  // meter mapping for Kmax = infinity
+  function meterT_fromK(K, s){
+    if (!Number.isFinite(K) || K <= 0) return 0;
+    // t = 1 - exp(-K/s)
+    return 1 - Math.exp(-K / s);
+  }
+
+  // P -> K using Sagan
+  function K_from_P(P){
+    // K = (log10(P) - 6)/10
+    return (Math.log10(P) - 6) / 10;
+  }
+
+  // K -> log10(P)
+  function log10P_from_K(K){
+    // log10(P) = 10K + 6
+    return 10 * K + 6;
+  }
+
+  function powerTextFromExponent(E){
+    if (!Number.isFinite(E)) return "10^∞ W";
+    return `10^${E.toFixed(2)} W`;
+  }
+
+  // ---------- UI ELEMENTS ----------
+  const tabP2K = document.getElementById('tabP2K');
+  const tabK2P = document.getElementById('tabK2P');
+  const panelP2K = document.getElementById('panelP2K');
+  const panelK2P = document.getElementById('panelK2P');
+  const modeBadge = document.getElementById('modeBadge');
+
+  const powerInput = document.getElementById('powerInput');
+  const unitSel = document.getElementById('unitSel');
+  const calcBtn = document.getElementById('calcBtn');
+  const earthBtn = document.getElementById('earthBtn');
+  const clearBtn = document.getElementById('clearBtn');
+
+  const kInput = document.getElementById('kInput');
+  const kQuick = document.getElementById('kQuick');
+  const calcBtn2 = document.getElementById('calcBtn2');
+  const clearBtn2 = document.getElementById('clearBtn2');
+
+  const infSwitch = document.getElementById('infSwitch');
+  const infSwitch2 = document.getElementById('infSwitch2');
+
+  const statusBadge = document.getElementById('statusBadge');
+  const bigK = document.getElementById('bigK');
+  const bigType = document.getElementById('bigType');
+  const outPower = document.getElementById('outPower');
+  const outLog10P = document.getElementById('outLog10P');
+  const outCheck = document.getElementById('outCheck');
+
+  const tagMeter = document.getElementById('tagMeter');
+  const tagSpec = document.getElementById('tagSpec');
+  const tagHuge = document.getElementById('tagHuge');
+  const tagErr  = document.getElementById('tagErr');
+
+  const bar = document.getElementById('bar');
+  const marker = document.getElementById('marker');
+
+  const scaleS = document.getElementById('scaleS');
+  const scaleSVal = document.getElementById('scaleSVal');
+
+  let mode = 'P2K'; // or 'K2P'
+  let infMode = true; // Kmax = infinity visualization (always on, switch controls it anyway)
+
+  function setMode(next){
+    mode = next;
+    const p2k = (mode === 'P2K');
+    tabP2K.classList.toggle('active', p2k);
+    tabK2P.classList.toggle('active', !p2k);
+    panelP2K.classList.toggle('hidden', !p2k);
+    panelK2P.classList.toggle('hidden', p2k);
+    modeBadge.textContent = `MODE: ${p2k ? 'Power → K' : 'K → Power'}`;
+    status("READY", "READY");
+    clearError();
+  }
+
+  function setInfMode(on){
+    infMode = !!on;
+    infSwitch.classList.toggle('on', infMode);
+    infSwitch2.classList.toggle('on', infMode);
+    infSwitch.setAttribute('aria-checked', String(infMode));
+    infSwitch2.setAttribute('aria-checked', String(infMode));
+    tagMeter.textContent = infMode ? "∞ meter enabled" : "meter clamped";
+  }
+
+  function status(text, kind){
+    statusBadge.textContent = text;
+    statusBadge.style.borderColor =
+      kind === 'ERR' ? 'rgba(255,90,120,.40)' :
+      kind === 'OK'  ? 'rgba(140,255,170,.40)' :
+      'rgba(140,255,235,.25)';
+  }
+
+  function showError(msg){
+    status(msg, "ERR");
+    tagErr.classList.remove('hidden');
+  }
+
+  function clearError(){
+    tagErr.classList.add('hidden');
+    tagHuge.classList.add('hidden');
+  }
+
+  function setSpecTag(K){
+    const spec = Number.isFinite(K) && K >= 3;
+    tagSpec.classList.toggle('hidden', !spec);
+  }
+
+  function updateMeter(K){
+    const s = parseFloat(scaleS.value);
+    scaleSVal.textContent = s.toFixed(1);
+
+    let t = 0;
+    if (infMode){
+      t = meterT_fromK(K, s);
+    } else {
+      // fallback clamp 0..3
+      const Kmax = 3;
+      t = clamp(K / Kmax, 0, 1);
+    }
+
+    const rect = bar.getBoundingClientRect();
+    const x = Math.round(t * rect.width);
+    marker.style.left = `${x}px`;
+  }
+
+  function setOutputs({K, P, E, checkText, hugeMode=false}){
+    bigK.textContent = Number.isFinite(K) ? K.toFixed(4) : "—";
+    bigType.textContent = categoryFromK(K);
+    outPower.textContent = (typeof P === 'string') ? P : (Number.isFinite(P) ? `${formatPower(P)} (${fmtSig(P,4)} W)` : "—");
+    outLog10P.textContent = Number.isFinite(E) ? E.toFixed(4) : "—";
+    outCheck.textContent = checkText || "—";
+
+    setSpecTag(K);
+    tagHuge.classList.toggle('hidden', !hugeMode);
+    updateMeter(K);
+  }
+
+  function calcFromPower(){
+    clearError();
+    const n = parseNumber(powerInput.value);
+    const factor = parseNumber(unitSel.value);
+    const P = n * factor;
+
+    if (!Number.isFinite(P) || P <= 0){
+      showError("INVALID POWER");
+      setOutputs({K:NaN, P:"—", E:NaN, checkText:"Enter P > 0", hugeMode:false});
+      return;
+    }
+
+    const K = K_from_P(P);
+    const E = Math.log10(P);
+    // check line
+    const check = `K = (log10(P) − 6)/10 = (${E.toFixed(4)} − 6)/10`;
+    status("OK", "OK");
+    setOutputs({K, P, E, checkText:check, hugeMode:false});
+  }
+
+  function calcFromK(){
+    clearError();
+    const K = parseNumber(kInput.value);
+    if (!Number.isFinite(K)){
+      showError("INVALID K");
+      setOutputs({K:NaN, P:"—", E:NaN, checkText:"Enter a numeric K", hugeMode:false});
+      return;
+    }
+
+    const E = log10P_from_K(K);
+
+    // If exponent too large for JS number, don't compute P
+    // JS max ~ 1e308, so E > 308 means overflow.
+    if (E > 308){
+      status("OK (HUGE)", "OK");
+      const Ptxt = powerTextFromExponent(E);
+      const check = `log10(P) = 10K + 6 = 10×${K.toFixed(4)} + 6 = ${E.toFixed(4)}`;
+      setOutputs({K, P:Ptxt, E, checkText:check, hugeMode:true});
+      return;
+    }
+
+    const P = Math.pow(10, E);
+    status("OK", "OK");
+    const check = `log10(P) = 10K + 6 = ${E.toFixed(4)}  ⇒  P = 10^${E.toFixed(4)}`;
+    setOutputs({K, P, E, checkText:check, hugeMode:false});
+  }
+
+  function clearAll(){
+    powerInput.value = "";
+    kInput.value = "";
+    kQuick.value = "";
+    status("READY", "READY");
+    clearError();
+    setOutputs({K:NaN, P:"—", E:NaN, checkText:"—", hugeMode:false});
+    updateMeter(0);
+  }
+
+  // ---------- EVENTS ----------
+  tabP2K.addEventListener('click', () => setMode('P2K'));
+  tabK2P.addEventListener('click', () => setMode('K2P'));
+
+  calcBtn.addEventListener('click', calcFromPower);
+  calcBtn2.addEventListener('click', calcFromK);
+
+  powerInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') calcFromPower(); });
+  kInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') calcFromK(); });
+
+  earthBtn.addEventListener('click', () => {
+    // ~2×10^13 W (rough present-day human total power consumption)
+    powerInput.value = "2e13";
+    unitSel.value = "1"; // watts
+    calcFromPower();
+  });
+
+  clearBtn.addEventListener('click', clearAll);
+  clearBtn2.addEventListener('click', clearAll);
+
+  kQuick.addEventListener('change', () => {
+    if (kQuick.value){
+      kInput.value = kQuick.value;
+      calcFromK();
+    }
+  });
+
+  function toggleInf(){
+    setInfMode(!infMode);
+    // recalc current mode for meter refresh
+    if (mode === 'P2K'){
+      if (powerInput.value.trim()) calcFromPower();
+      else updateMeter(0);
+    } else {
+      if (kInput.value.trim()) calcFromK();
+      else updateMeter(0);
+    }
+  }
+
+  function switchKeySupport(el){
+    el.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleInf(); }
+    });
+  }
+
+  infSwitch.addEventListener('click', toggleInf);
+  infSwitch2.addEventListener('click', toggleInf);
+  switchKeySupport(infSwitch);
+  switchKeySupport(infSwitch2);
+
+  scaleS.addEventListener('input', () => {
+    scaleSVal.textContent = parseFloat(scaleS.value).toFixed(1);
+    // just refresh meter position
+    const currentK = parseNumber(bigK.textContent);
+    updateMeter(currentK);
+  });
+
+  // Initial state
+  setMode('P2K');
+  setInfMode(true);
+  setOutputs({K:NaN, P:"—", E:NaN, checkText:"—", hugeMode:false});
+  updateMeter(0);
+
+  // keep meter responsive on layout change
+  new ResizeObserver(() => {
+    const currentK = parseNumber(bigK.textContent);
+    updateMeter(currentK);
+  }).observe(bar);
+
+})();
+</script>
 </body>
 </html>
